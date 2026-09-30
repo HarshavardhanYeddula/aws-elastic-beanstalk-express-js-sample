@@ -1,6 +1,8 @@
 # =========================================================
 # Dockerfile — AWS Elastic Beanstalk Express.js sample
-# Multi-stage build for a smaller, safer runtime image
+# ISEC6000 Assessment 2 — Task 3
+# Multi-stage build; runtime based on supported Node 20 LTS
+# to satisfy the Trivy HIGH/CRITICAL security gate.
 # =========================================================
 
 # ---- Build stage: install dependencies -----------------
