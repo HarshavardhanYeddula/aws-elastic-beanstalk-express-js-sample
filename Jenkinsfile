@@ -3,8 +3,7 @@
 // Student ID : 23460810
 // Stages     : Checkout -> Install -> Test -> Security Scan (FS)
 //              -> Build Image -> Security Scan (Image) -> Push
-// Agent      : node:16 Docker image for build/test (per brief)
-// Gate       : Trivy (installed in Jenkins image) fails on HIGH/CRITICAL
+// Gate       : Trivy (in Jenkins image) fails on HIGH/CRITICAL
 // =====================================================================
 pipeline {
   agent none
@@ -65,13 +64,13 @@ pipeline {
             --ignore-unfixed \\
             --no-progress \\
             --format table \\
-            --output trivy-fs.txt \\
+            --output /tmp/trivy-fs.txt \\
             .
         """
       }
       post {
         always {
-          archiveArtifacts artifacts: 'trivy-fs.txt', allowEmptyArchive: true
+          archiveArtifacts artifacts: '/tmp/trivy-fs.txt', allowEmptyArchive: true
         }
       }
     }
@@ -94,13 +93,13 @@ pipeline {
             --ignore-unfixed \\
             --no-progress \\
             --format table \\
-            --output trivy-image.txt \\
+            --output /tmp/trivy-image.txt \\
             ${IMAGE_NAME}:${IMAGE_TAG}
         """
       }
       post {
         always {
-          archiveArtifacts artifacts: 'trivy-image.txt', allowEmptyArchive: true
+          archiveArtifacts artifacts: '/tmp/trivy-image.txt', allowEmptyArchive: true
         }
       }
     }
@@ -128,8 +127,10 @@ pipeline {
     success { echo "Pipeline succeeded for build ${env.BUILD_NUMBER}" }
     failure { echo "Pipeline FAILED — check Trivy reports in artifacts" }
     always {
-      archiveArtifacts artifacts: 'trivy-*.txt', allowEmptyArchive: true
-      cleanWs()
+      node {
+        archiveArtifacts artifacts: '/tmp/trivy-*.txt', allowEmptyArchive: true
+        cleanWs()
+      }
     }
   }
 }
