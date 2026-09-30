@@ -1,6 +1,10 @@
 // =====================================================================
 // ISEC6000 Assessment 2 — CI/CD Pipeline
 // Student ID : 23460810
+// Stages     : Checkout -> Install -> Test -> Security Scan (FS)
+//              -> Build Image -> Security Scan (Image) -> Push
+// Agent      : node:16 Docker image for build/test (per brief)
+// Gate       : Trivy fails the build on HIGH/CRITICAL vulnerabilities
 // =====================================================================
 pipeline {
   agent none
@@ -34,32 +38,35 @@ pipeline {
     stage('Install Dependencies') {
       agent { docker { image 'node:16'; args '-u root' } }
       steps {
-        sh 'npm install'
+        sh 'npm ci || npm install'
       }
     }
 
     stage('Run Unit Tests') {
       agent { docker { image 'node:16'; args '-u root' } }
       steps {
-        sh 'npm test'
+        sh 'npm test -- --ci --reporters=default'
+      }
+      post {
+        always {
+          junit allowEmptyResults: true, testResults: '**/junit.xml'
+        }
       }
     }
 
     stage('Security Scan (Filesystem)') {
-      agent any
+      agent { docker { image 'aquasec/trivy:latest'; args '-u root --entrypoint=""' } }
       steps {
         sh """
-          docker run --rm \\
-            -v \${WORKSPACE}:/workspace \\
-            -w /workspace \\
-            aquasec/trivy:latest fs \\
-              --severity ${TRIVY_SEVERITY} \\
-              --ignore-unfixed \\
-              --exit-code ${TRIVY_EXIT_CODE} \\
-              --no-progress \\
-              --format table \\
-              --output trivy-fs.txt \\
-              .
+          trivy fs \\
+            --scanners vuln \\
+            --severity ${TRIVY_SEVERITY} \\
+            --exit-code ${TRIVY_EXIT_CODE} \\
+            --ignore-unfixed \\
+            --no-progress \\
+            --format table \\
+            --output trivy-fs.txt \\
+            .
         """
       }
       post {
@@ -72,28 +79,23 @@ pipeline {
     stage('Build Docker Image') {
       agent any
       steps {
-        sh """
-          docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -t ${IMAGE_NAME}:latest .
-        """
+        sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -t ${IMAGE_NAME}:latest ."
       }
     }
 
     stage('Security Scan (Image)') {
-      agent any
+      agent { docker { image 'aquasec/trivy:latest'; args '-u root --entrypoint=""' } }
       steps {
         sh """
-          docker run --rm \\
-            -v /var/run/docker.sock:/var/run/docker.sock \\
-            -v \${WORKSPACE}:/workspace \\
-            -w /workspace \\
-            aquasec/trivy:latest image \\
-              --severity ${TRIVY_SEVERITY} \\
-              --ignore-unfixed \\
-              --exit-code ${TRIVY_EXIT_CODE} \\
-              --no-progress \\
-              --format table \\
-              --output trivy-image.txt \\
-              ${IMAGE_NAME}:${IMAGE_TAG}
+          trivy image \\
+            --scanners vuln \\
+            --severity ${TRIVY_SEVERITY} \\
+            --exit-code ${TRIVY_EXIT_CODE} \\
+            --ignore-unfixed \\
+            --no-progress \\
+            --format table \\
+            --output trivy-image.txt \\
+            ${IMAGE_NAME}:${IMAGE_TAG}
         """
       }
       post {
@@ -123,7 +125,11 @@ pipeline {
   }
 
   post {
-    success { echo "Pipeline succeeded — build ${env.BUILD_NUMBER}" }
+    success { echo "Pipeline succeeded for build ${env.BUILD_NUMBER}" }
     failure { echo "Pipeline FAILED — check Trivy reports in artifacts" }
+    always {
+      archiveArtifacts artifacts: 'trivy-*.txt', allowEmptyArchive: true
+      cleanWs()
+    }
   }
 }
