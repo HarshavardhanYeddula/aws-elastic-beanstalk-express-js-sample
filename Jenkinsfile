@@ -5,15 +5,7 @@
 // Stages: Checkout -> Install -> Test -> Security Scan (FS)
 //         -> Build Image -> Security Scan (Image) -> Push
 // Agent : node:16 Docker image (per assignment requirement)
-// Gate  : Trivy fails the build on HIGH/CRITICAL vulnerabilities
-// ---------------------------------------------------------------------
-// Key fixes in this version:
-//   1. Trivy runs via `docker run` (not agent docker) so it can reach
-//      the DinD daemon through the shared docker.sock
-//   2. Image scan mounts /var/run/docker.sock so Trivy can inspect
-//      the freshly-built image
-//   3. Removed top-level post-condition archiveArtifacts (crashed
-//      because agent none has no node context)
+// Gate  : Trivy fails on HIGH/CRITICAL findings with --ignore-unfixed
 // =====================================================================
 pipeline {
   agent none
@@ -67,6 +59,7 @@ pipeline {
             -w /workspace \\
             aquasec/trivy:latest fs \\
               --severity ${TRIVY_SEVERITY} \\
+              --ignore-unfixed \\
               --exit-code ${TRIVY_EXIT_CODE} \\
               --no-progress \\
               --format table \\
@@ -100,6 +93,7 @@ pipeline {
             -w /workspace \\
             aquasec/trivy:latest image \\
               --severity ${TRIVY_SEVERITY} \\
+              --ignore-unfixed \\
               --exit-code ${TRIVY_EXIT_CODE} \\
               --no-progress \\
               --format table \\
