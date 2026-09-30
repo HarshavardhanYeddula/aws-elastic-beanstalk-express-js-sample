@@ -4,7 +4,7 @@
 // Stages     : Checkout -> Install -> Test -> Security Scan (FS)
 //              -> Build Image -> Security Scan (Image) -> Push
 // Agent      : node:16 Docker image for build/test (per brief)
-// Gate       : Trivy fails the build on HIGH/CRITICAL vulnerabilities
+// Gate       : Trivy (installed in Jenkins image) fails on HIGH/CRITICAL
 // =====================================================================
 pipeline {
   agent none
@@ -55,7 +55,7 @@ pipeline {
     }
 
     stage('Security Scan (Filesystem)') {
-      agent { docker { image 'aquasec/trivy:latest'; args '-u root --entrypoint=""' } }
+      agent any
       steps {
         sh """
           trivy fs \\
@@ -84,7 +84,7 @@ pipeline {
     }
 
     stage('Security Scan (Image)') {
-      agent { docker { image 'aquasec/trivy:latest'; args '-u root --entrypoint=""' } }
+      agent any
       steps {
         sh """
           trivy image \\
