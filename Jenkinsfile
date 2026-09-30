@@ -1,11 +1,6 @@
 // =====================================================================
 // ISEC6000 Assessment 2 — CI/CD Pipeline
 // Student ID : 23460810
-// ---------------------------------------------------------------------
-// Stages: Checkout -> Install -> Test -> Security Scan (FS)
-//         -> Build Image -> Security Scan (Image) -> Push
-// Agent : node:16 Docker image (per assignment requirement)
-// Gate  : Trivy fails on HIGH/CRITICAL findings with --ignore-unfixed
 // =====================================================================
 pipeline {
   agent none
