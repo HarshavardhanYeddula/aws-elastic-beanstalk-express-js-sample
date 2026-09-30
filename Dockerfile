@@ -1,7 +1,3 @@
-# ---------------------------------------------------------------------
-# ISEC6000 Assessment 2 — Node.js app image (multi-stage)
-# Uses node:16-alpine (last valid tag for Node 16)
-# ---------------------------------------------------------------------
 FROM node:16-alpine AS build
 WORKDIR /app
 COPY package*.json ./
